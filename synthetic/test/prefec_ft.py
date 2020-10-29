@@ -357,7 +357,7 @@ elif args.method == 'crl-envelope':
 elif args.method == 'crl-energy':
     from crl.energy.meta import MetaAgent
 model = torch.load("{}{}.pkl".format(args.save,
-                                     "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)))
+                                     "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)), map_location='cpu')
 agent = MetaAgent(model, args, is_train=False)
 
 

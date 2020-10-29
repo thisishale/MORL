@@ -150,7 +150,7 @@ def renew_w(preferences, dim):
 
 
 if __name__ == '__main__':
-
+    
     args = parser.parse_args()
 
     # get enviroment information
@@ -226,7 +226,7 @@ if __name__ == '__main__':
 
     if not args.training:
         rw = []
-
+    print('************I got here***************')
     while True:
         total_state, total_reward, total_done, total_next_state, total_action, total_moreward = [], [], [], [], [], []
         global_step += (args.num_worker * args.num_step)

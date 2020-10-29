@@ -120,7 +120,6 @@ if __name__ == '__main__':
         gym_super_mario_bros.make(args.env_id), SIMPLE_MOVEMENT)
     input_size = env.observation_space.shape
     output_size = env.action_space.n
-
     env.close()
 
     # setup 

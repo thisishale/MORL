@@ -67,7 +67,6 @@ parser.add_argument('--beta', type=float, default=0.01, metavar='BETA',
                     help='beta for evelope algorithm, default = 0.01')
 parser.add_argument('--homotopy', default=False, action='store_true',
                     help='use homotopy optimization method')
-
 args = parser.parse_args()
 
 vis = visdom.Visdom()
@@ -366,7 +365,7 @@ if args.pltcontrol:
     elif args.method == 'crl-energy':
         from crl.energy.meta import MetaAgent
     model = torch.load("{}{}.pkl".format(args.save,
-                                         "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)))
+                                         "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
     agent = MetaAgent(model, args, is_train=False)
 
     # compute opt
@@ -514,7 +513,7 @@ if args.pltpareto:
         elif args.method == 'crl-energy':
             from crl.energy.meta import MetaAgent
         model = torch.load("{}{}.pkl".format(args.save,
-                                             "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)))
+                                             "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
         agent = MetaAgent(model, args, is_train=False)
 
         # compute recovered Pareto
@@ -662,11 +661,11 @@ if args.mergepareto:
         import crl.envelope.meta
 
         naive_model = torch.load("{}{}.pkl".format("crl/naive/saved/",
-                                             "m.{}_e.{}_n.{}".format("linear", "ft", "s3_r3")))
+                                             "m.{}_e.{}_n.{}".format("linear", "ft", "s3_r3")),map_location='cpu')
         naive_agent = crl.naive.meta.MetaAgent(naive_model, args, is_train=False)
 
         enve_model = torch.load("{}{}.pkl".format("crl/envelope/saved/",
-                                             "m.{}_e.{}_n.{}".format("linear", "ft", "s3_r1")))
+                                             "m.{}_e.{}_n.{}".format("linear", "ft", "s3_r1")),map_location='cpu')
         enve_agent = crl.envelope.meta.MetaAgent(enve_model, args, is_train=False)
 
         # compute recovered Pareto
@@ -742,7 +741,7 @@ if args.mergepareto:
         torch.save(ALL, "test/tmp/result_pareto_merged.pkl")
 
     else:
-        ALL = torch.load("test/tmp/result_pareto_merged.pkl")
+        ALL = torch.load("test/tmp/result_pareto_merged.pkl",map_location='cpu')
         FRUITS = np.tile(FRUITS, (30, 1))
         p1 = FRUITS.shape[0]
         p2 = p1 + SAMPLE_N
@@ -820,11 +819,11 @@ if args.mergecontrol:
     import crl.naive.meta
     import crl.envelope.meta
     naive_model = torch.load("{}{}.pkl".format("crl/naive/saved/",
-                                             "m.{}_e.{}_n.{}".format("linear", "ft", "s3_r0")))
+                                             "m.{}_e.{}_n.{}".format("linear", "ft", "s3_r0")),map_location='cpu')
     naive_agent = crl.naive.meta.MetaAgent(naive_model, args, is_train=False)
 
     enve_model = torch.load("{}{}.pkl".format("crl/envelope/saved/",
-                                         "m.{}_e.{}_n.{}".format("linear", "ft", "s3_r4")))
+                                         "m.{}_e.{}_n.{}".format("linear", "ft", "s3_r4")),map_location='cpu')
     enve_agent = crl.envelope.meta.MetaAgent(enve_model, args, is_train=False)
 
     # compute opt
@@ -913,7 +912,7 @@ if args.mergecontrol:
             naive_q_x, naive_q_y)
         torch.save(storage, "test/tmp/result_control_merged.pkl")
     else:
-        opt_x, opt_y, enve_act_x, enve_act_y, enve_q_x, enve_q_y, naive_act_x, naive_act_y, naive_q_x, naive_q_y = torch.load("test/tmp/result_control_merged.pkl")
+        opt_x, opt_y, enve_act_x, enve_act_y, enve_q_x, enve_q_y, naive_act_x, naive_act_y, naive_q_x, naive_q_y = torch.load("test/tmp/result_control_merged.pkl",map_location='cpu')
 
     trace_opt = dict(x=opt_x,
                      y=opt_y,

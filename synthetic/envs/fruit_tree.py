@@ -238,16 +238,17 @@ class FruitTree(object):
         self.reward_dim = 6
         self.tree_depth = depth # zero based depth
         branches = np.zeros((int(2 ** self.tree_depth - 1), self.reward_dim))
+        # print(branches.shape) [63,6]
         # fruits = np.random.randn(2**self.tree_depth, self.reward_dim)
         # fruits = np.abs(fruits) / np.linalg.norm(fruits, 2, 1, True)
         # print(fruits*10)
-        fruits = np.array(FRUITS[str(depth)])
+        fruits = np.array(FRUITS[str(depth)])#(64,6)
         self.tree = np.concatenate(
             [
                 branches,
                 fruits
-            ])
-
+            ])#(127,6)
+        # print(self.tree)
         # DON'T normalize
         self.max_reward = 10.0
 
@@ -266,9 +267,13 @@ class FruitTree(object):
         self.terminal = False
 
     def get_ind(self, pos):
+        # print(int(2 ** pos[0] - 1) + pos[1])
         return int(2 ** pos[0] - 1) + pos[1]
 
     def get_tree_value(self, pos):
+        # print(self.tree[self.get_ind(pos)])
+        # print(pos)
+        # print(self.get_ind(pos))
         return self.tree[self.get_ind(pos)]
 
     def reset(self):
@@ -282,15 +287,23 @@ class FruitTree(object):
         '''
             step one move and feed back reward
         '''
-
+        # test = {
+        #     0: np.array([1, self.current_state[1]]),  # left
+        #     1: np.array([1, self.current_state[1] + 1]),  # right
+        # }
+        # print(test)
         direction = {
             0: np.array([1, self.current_state[1]]),  # left
             1: np.array([1, self.current_state[1] + 1]),  # right
         }[action]
-
+        # print(action)
+        # print(direction) 
+        # print(self.current_state) 
         self.current_state = self.current_state + direction
-
+        # print(self.current_state) 
         reward = self.get_tree_value(self.current_state)
+        # print(reward)
+        # print(reward)
         if self.current_state[0] == self.tree_depth:
             self.terminal = True
 

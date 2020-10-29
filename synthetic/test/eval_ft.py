@@ -302,7 +302,7 @@ FRUITS_DITC = {'6':
             [  7.79480886,  4.68269928,  3.85253341,  0.20850008,   1.55792871,  0.02558407],  
             [  1.68967122,  1.11253309,  3.74425011,  3.12606095,   3.20780397,  7.86292624]]
         }
-
+# print(len(FRUITS_DITC['6'])) 64
 # apply gamma
 env_ind = {'ft':'6', 'ft5':'5', 'ft7':'7'}[args.env_name]
 FRUITS = np.array(FRUITS_DITC[env_ind]) * np.power(args.gamma, 5)
@@ -359,7 +359,7 @@ if args.pltcontrol:
     elif args.method == 'crl-energy':
         from crl.energy.meta import MetaAgent
     model = torch.load("{}{}.pkl".format(args.save,
-                                         "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)))
+                                         "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
     agent = MetaAgent(model, args, is_train=False)
 
     # compute opt
@@ -504,7 +504,7 @@ if args.pltpareto:
     elif args.method == 'crl-energy':
         from crl.energy.meta import MetaAgent
     model = torch.load("{}{}.pkl".format(args.save,
-                                         "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)))
+                                         "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
     agent = MetaAgent(model, args, is_train=False)
 
     # compute recovered Pareto

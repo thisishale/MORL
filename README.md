@@ -11,7 +11,8 @@ We introduce a new algorithm for **multi-objective reinforcement learning (MORL)
 The experiments on two synthetic domains, **Deep Sea Treasure (DST)** and **Fruit Tree Navigation (FTN)**, as well as two complex real domains, **Task-Oriented Dialog Policy Learning (Dialog)** and **SuperMario Game (SuperMario)**.
 
 ### `synthetic`
-
+tensorboardx: cmd
+tensorboard --logdir D:\studies\python\programs\github\RL\MORL\synthetic\runs\
 PyTorch version for the code in `synthetic` was torch 0.4.0 (sorry for the 2 years old code) with Python 3.5,
 and the visdom version is 0.1.6.3
 

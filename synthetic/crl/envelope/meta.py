@@ -33,17 +33,25 @@ class MetaAgent(object):
         self.model = copy.deepcopy(model)
         self.is_train = is_train
         self.gamma = args.gamma
+        # 0.99
         self.epsilon = args.epsilon
+        # 0.5
         self.epsilon_decay = args.epsilon_decay
+        # true
         self.epsilon_delta = (args.epsilon - 0.05) / args.episode_num
 
         self.mem_size = args.mem_size
+        # 4000
         self.batch_size = args.batch_size
+        # 256
         self.weight_num = args.weight_num
+        # 32
 
         self.beta            = args.beta
+        # 0.01
         self.beta_init       = args.beta
         self.homotopy        = args.homotopy
+        # true
         self.beta_uplim      = 1.00
         self.tau             = 1000.
         self.beta_expbase    = float(np.power(self.tau*(self.beta_uplim-self.beta), 1./args.episode_num))
@@ -61,6 +69,7 @@ class MetaAgent(object):
         self.w_kept = None
         self.update_count = 0
         self.update_freq = args.update_freq
+        # 100
 
         if self.is_train:
             self.model.train()
@@ -72,23 +81,30 @@ class MetaAgent(object):
         # random pick a preference if it is not specified
         if preference is None:
             if self.w_kept is None:
+                # define a random weight in shape of rewards which is 6.
                 self.w_kept = torch.randn(self.model_.reward_size)
+                # normalize the weight.
                 self.w_kept = (torch.abs(self.w_kept) / \
                                torch.norm(self.w_kept, p=1)).type(FloatTensor)
             preference = self.w_kept
         state = torch.from_numpy(state).type(FloatTensor)
-
+        # Creates a Tensor from a numpy.ndarray.
         _, Q = self.model_(
             Variable(state.unsqueeze(0)),
+            # (1,2)
             Variable(preference.unsqueeze(0)))
-
+            # (1,6)
+        # print(Q.shape) [1,2,6] 
         Q = Q.view(-1, self.model_.reward_size)
-
+        # print(Q.shape) [2,6] (action, preference)
         Q = torch.mv(Q.data, preference)
-
+        # print(Q.shape) [2]
         action = Q.max(0)[1].cpu().numpy()
+        #print(Q.max(0)) (tensor(0.0192), tensor(0)) #first one if the number of max q 
+        # which is for action 0(the second element in tensor)
         action = int(action)
-
+        # If there is not enough data for a batch or we are at the start of training:
+        # choose randomly.
         if self.is_train and (len(self.trans_mem) < self.batch_size or \
                               torch.rand(1)[0] < self.epsilon):
             action = np.random.choice(self.model_.action_size, 1)[0]
@@ -109,20 +125,32 @@ class MetaAgent(object):
         preference = torch.randn(self.model_.reward_size)
         preference = (torch.abs(preference) / torch.norm(preference, p=1)).type(FloatTensor)
         state = torch.from_numpy(state).type(FloatTensor)
-
+        # preference size: [6]
+        # state size: [2]
+        # reward size: [6]
         _, q = self.model_(Variable(state.unsqueeze(0), requires_grad=False),
                            Variable(preference.unsqueeze(0), requires_grad=False))
-
+        # q size: [1, 2, 6]
         q = q[0, action].data
+        # chooses the row corresponding to that action q size: [6]
         wq = preference.dot(q)
-
+        # this is wq(s,a,w) in page 21.
+        # wq is a number now.
         wr = preference.dot(torch.from_numpy(reward).type(FloatTensor))
+        # wr is a number now.
         if not terminal:
             next_state = torch.from_numpy(next_state).type(FloatTensor)
+            # next_state : [2]
+            # next_state.unsqueeze(0) : [1, 2]
+            # preference.unsqueeze(0) : [1, 6]
             hq, _ = self.model_(Variable(next_state.unsqueeze(0), requires_grad=False),
                                 Variable(preference.unsqueeze(0), requires_grad=False))
+            # hq gives the row of q in which the action is max (after implementing w). 
+            # hq id q_target in formula in paper page 21.
+            # q gives the whole q. 
             hq = hq.data[0]
             whq = preference.dot(hq)
+            # whq is a number now.
             p = abs(wr + self.gamma * whq - wq)
         else:
             print(self.beta)
@@ -149,6 +177,7 @@ class MetaAgent(object):
             replace=False,
             p=pri / pri.sum()
         )
+        # print(inds.shape) (256,)
         return [pop[i] for i in inds]
 
     def actmsk(self, num_dim, index):
@@ -166,45 +195,74 @@ class MetaAgent(object):
         if len(self.trans_mem) > self.batch_size:
 
             self.update_count += 1
-
+            # target model is 
             action_size = self.model_.action_size
             reward_size = self.model_.reward_size
-
+            # print(action_size) 2
+            # print(reward_size) 6
             minibatch = self.sample(self.trans_mem, self.priority_mem, self.batch_size)
+            # print(len(minibatch)) 256
+            # minibatch shape: (256,5,...(depends on what it is(state, next state, reward...)))
+            # print(len(minibatch[0])) 5 
+            # print(len(minibatch[0][0])) 2 state 
+            # print(len(minibatch[0][1])) 0 int action
+            # print(len(minibatch[0][2])) 2 next state
+            # print(len(minibatch[0][3])) 6 reward
+            # print(len(minibatch[0][4])) 0 bool  terminal or not
             # minibatch = random.sample(self.trans_mem, self.batch_size)
             batchify = lambda x: list(x) * self.weight_num
             state_batch = batchify(map(lambda x: x.s.unsqueeze(0), minibatch))
-            action_batch = batchify(map(lambda x: LongTensor([x.a]), minibatch))
+            # print(len(state_batch)) 8192
+            # print(minibatch[0].s.shape) 2
+            # print(minibatch[0].s.unsqueeze(0).shape) (1,2)
+            # len(list(map(lambda x: x.s.unsqueeze(0), minibatch))) 256
+            # len(list(map(lambda x: x.s.unsqueeze(0), minibatch))[0]) 1
+            # len(list(map(lambda x: x.s.unsqueeze(0), minibatch))[0]) 2
+            # so it gets repeated since it gets multiplied by 32 which is the weight_num.
+            # it gets repeated for them all.
+            # a is int, convert it to longtensor.
+            action_batch = batchify(map(lambda x: LongTensor([x.a]), minibatch)) 
             reward_batch = batchify(map(lambda x: x.r.unsqueeze(0), minibatch))
             next_state_batch = batchify(map(lambda x: x.s_.unsqueeze(0), minibatch))
             terminal_batch = batchify(map(lambda x: x.d, minibatch))
-
+            # so what i understand from this code is that, we found actions using diffeent preferences, 
+            # and we found trajectories, then found probability of choosing each trajectory using a 
+            # different random weights. and now we are training the model using different random weights, 
+            # not the weights the model was trained with.
             w_batch = np.random.randn(self.weight_num, reward_size)
+            # print(w_batch.shape) 32, 6
             w_batch = np.abs(w_batch) / \
                       np.linalg.norm(w_batch, ord=1, axis=1, keepdims=True)
+            # print(w_batch.shape) 32, 6
             w_batch = torch.from_numpy(w_batch.repeat(self.batch_size, axis=0)).type(FloatTensor)
-
+            # print(w_batch.shape) 8192,6
             __, Q = self.model_(Variable(torch.cat(state_batch, dim=0)),
                                 Variable(w_batch), w_num=self.weight_num)
-
+            # print(Q.shape) 8192, 2, 6
             # detach since we don't want gradients to propagate
             # HQ, _    = self.model_(Variable(torch.cat(next_state_batch, dim=0), volatile=True),
             # 					  Variable(w_batch, volatile=True), w_num=self.weight_num)
             _, DQ = self.model(Variable(torch.cat(next_state_batch, dim=0), requires_grad=False),
                                Variable(w_batch, requires_grad=False))
+            # print(DQ.shape) 8192, 2, 6
             w_ext = w_batch.unsqueeze(2).repeat(1, action_size, 1)
+            # print(w_ext.shape) 8192, 12, 1
             w_ext = w_ext.view(-1, self.model.reward_size)
+            # print(w_ext.shape) 16384, 6
             _, tmpQ = self.model_(Variable(torch.cat(next_state_batch, dim=0), requires_grad=False),
                                   Variable(w_batch, requires_grad=False))
-
+            # print(tmpQ.shape) [8192, 2, 6]
             tmpQ = tmpQ.view(-1, reward_size)
+            # print(tmpQ.shape) 16384, 6
             # print(torch.bmm(w_ext.unsqueeze(1),
             # 			    tmpQ.data.unsqueeze(2)).view(-1, action_size))
             act = torch.bmm(Variable(w_ext.unsqueeze(1), requires_grad=False),
                             tmpQ.unsqueeze(2)).view(-1, action_size).max(1)[1]
-
+            # act 8192
+            # print(DQ.size(2)) 6
             HQ = DQ.gather(1, act.view(-1, 1, 1).expand(DQ.size(0), 1, DQ.size(2))).squeeze()
-
+            # print(HQ.shape)
+            # 8192, 6
             nontmlmask = self.nontmlinds(terminal_batch)
             with torch.no_grad():
                 Tau_Q = Variable(torch.zeros(self.batch_size * self.weight_num,
@@ -256,7 +314,6 @@ class MetaAgent(object):
 
     def save(self, save_path, model_name):
         torch.save(self.model, "{}{}.pkl".format(save_path, model_name))
-
 
     def find_preference(
             self,

@@ -1,6 +1,6 @@
 ## multi-obejcetive super mario bros
 ## modified by Runzhe Yang on Dec. 18, 2018
-
+print("******at the beginning****************")
 import gym
 import os
 import random
@@ -152,8 +152,17 @@ def renew_w(preferences, dim):
 
 
 if __name__ == '__main__':
-
+    print("******at the beginning after main****************")
     args = parser.parse_args()
+    #SIMPLE_MOVEMENT = [
+    #['NOOP'],
+    #['right'],
+    #['right', 'A'],
+    #['right', 'B'],
+    #['right', 'A', 'B'],
+    #['A'],
+    #['left'],
+
 
     # get enviroment information
     env = JoypadSpace(
