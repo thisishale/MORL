@@ -69,9 +69,9 @@ parser.add_argument('--homotopy', default=False, action='store_true',
                     help='use homotopy optimization method')
 args = parser.parse_args()
 
-vis = visdom.Visdom()
+# vis = visdom.Visdom()
 
-assert vis.check_connection()
+# assert vis.check_connection()
 
 use_cuda = torch.cuda.is_available()
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
@@ -352,7 +352,7 @@ def find_in(A, B, eps=0.2):
 ################# Control Frontier #################
 
 if args.pltcontrol:
-
+    print('started pltcontrol')
     # setup the environment
     env = MultiObjectiveEnv(args.env_name)
 
@@ -364,6 +364,8 @@ if args.pltcontrol:
         from crl.envelope.meta import MetaAgent
     elif args.method == 'crl-energy':
         from crl.energy.meta import MetaAgent
+    print(os.path.exists("{}{}.pkl".format(args.save,"m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name))))
+    print("{}{}.pkl".format(args.save,"m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)))
     model = torch.load("{}{}.pkl".format(args.save,
                                          "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
     agent = MetaAgent(model, args, is_train=False)
@@ -492,7 +494,7 @@ if args.pltcontrol:
         xaxis=dict(title='1st objective'),
         yaxis=dict(title='2nd objective'))
 
-    vis._send({'data': [trace_opt, act_opt, q_opt], 'layout': layout_opt})
+    # vis._send({'data': [trace_opt, act_opt, q_opt], 'layout': layout_opt})
 
 ################# Pareto Frontier #################
 
@@ -622,12 +624,13 @@ if args.pltpareto:
         args.method, args.name))
 
     # send to visdom
-    if args.method == "crl-naive":
-        vis._send({'data': [trace_pareto, act_pareto], 'layout': layout})
-    elif args.method == "crl-envelope":
-        vis._send({'data': [trace_pareto, act_pareto, pred_pareto], 'layout': layout})
-    elif args.method == "crl-energy":
-        vis._send({'data': [trace_pareto, act_pareto, pred_pareto], 'layout': layout})
+    print(trace_pareto)
+    # if args.method == "crl-naive":
+    #     vis._send({'data': [trace_pareto, act_pareto], 'layout': layout})
+    # elif args.method == "crl-envelope":
+    #     vis._send({'data': [trace_pareto, act_pareto, pred_pareto], 'layout': layout})
+    # elif args.method == "crl-energy":
+    #     vis._send({'data': [trace_pareto, act_pareto, pred_pareto], 'layout': layout})
 
 ################# HEATMAP #################
 
@@ -642,14 +645,14 @@ if args.pltmap:
                                size=10),
                            name='Pareto')
     layout = dict(title="FRUITS")
-    vis._send({'data': [trace_fruit_emb], 'layout': layout})
+    # vis._send({'data': [trace_fruit_emb], 'layout': layout})
 
 ################# Special For Paper ###############
 
 
 if args.mergepareto:
     SAMPLE_N = 2000
-
+    print('started')
     if not args.replot:
         # setup the environment
         env = MultiObjectiveEnv(args.env_name)
@@ -803,7 +806,7 @@ if args.mergepareto:
     layout = dict(title="FT Pareto Frontier")
 
     # send to visdom
-    vis._send({'data': [trace_pareto, enve_act_pareto, naive_act_pareto, pred_pareto], 'layout': layout})
+    # vis._send({'data': [trace_pareto, enve_act_pareto, naive_act_pareto, pred_pareto], 'layout': layout})
 
 
 if args.mergecontrol:
@@ -976,4 +979,4 @@ if args.mergecontrol:
         xaxis=dict(title=obj_names[first]),
         yaxis=dict(title=obj_names[second]))
 
-    vis._send({'data': [trace_opt, enve_act_opt, naive_act_opt, enve_q_opt, naive_q_opt], 'layout': layout_opt})
+    # vis._send({'data': [trace_opt, enve_act_opt, naive_act_opt, enve_q_opt, naive_q_opt], 'layout': layout_opt})

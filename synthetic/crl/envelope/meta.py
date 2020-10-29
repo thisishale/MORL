@@ -284,9 +284,11 @@ class MetaAgent(object):
                             Tau_Q.unsqueeze(2)).squeeze()
 
             # loss = F.mse_loss(Q.view(-1), Tau_Q.view(-1))
+            # print((1-self.beta) * F.mse_loss(Q.view(-1), Tau_Q.view(-1)))
+            # print(wTQ.view(-1))
             loss = self.beta * F.mse_loss(wQ.view(-1), wTQ.view(-1))
             loss += (1-self.beta) * F.mse_loss(Q.view(-1), Tau_Q.view(-1))
-
+            print(loss)
             self.optimizer.zero_grad()
             loss.backward()
             for param in self.model_.parameters():

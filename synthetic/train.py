@@ -134,6 +134,7 @@ def train(env, agent, args):
         #                act_2,
         #                #    q__max,
         #                loss / cnt)
+        print(num_eps)
         writer.add_scalar('loss', loss / cnt, num_eps)
         writer.add_scalar('act_1', act_1, num_eps)
         writer.add_scalar('act_2', act_2, num_eps)
