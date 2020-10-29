@@ -63,9 +63,9 @@ parser.add_argument('--homotopy', default=False, action='store_true',
 
 args = parser.parse_args()
 
-vis = visdom.Visdom()
+# vis = visdom.Visdom()
 
-assert vis.check_connection()
+# assert vis.check_connection()
 
 use_cuda = torch.cuda.is_available()
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
@@ -325,6 +325,7 @@ def find_in(A, B, eps=0.2):
             if eps > 0.001:
               if np.linalg.norm(a - b, ord=1) < eps*np.linalg.norm(b):
                   cnt1 += 1.0
+                  print('I came here, I shouldnt have come here')
                   break
             else:
               if np.linalg.norm(a - b, ord=1) < 0.5:
@@ -332,14 +333,17 @@ def find_in(A, B, eps=0.2):
                   break
     for b in B:
         for a in A:
+            print(eps)
             if eps > 0.001:
               if np.linalg.norm(a - b, ord=1) < eps*np.linalg.norm(b):
+                  print('I came here, I shouldnt have come here')
                   cnt2 += 1.0
                   break
             else:
               if np.linalg.norm(a - b, ord=1) < 0.5:
                   cnt2 += 1.0
                   break
+                  
     return cnt1, cnt2
 
 
@@ -537,12 +541,25 @@ if args.pltpareto:
             cnt += 1
 
         act.append(ttrw)
-
+    # print(act)
     act = np.array(act)
     cnt1, cnt2 = find_in(act, FRUITS, 0.0)
+    print(cnt1, cnt2)
+    aa=0
+    while True:
+        aa = aa+1
+    aa = np.array([[11,22,33],[22,33,44]])
+    bb = np.array([[11,12,13],[22,33,44]])
+    c1, c2 = find_in(aa, bb, 0.0)
+    print(c1)
+    print(c2)
+    # print(np.linalg.norm(aa - bb, ord=1))
+    # print(np.linalg.norm(bb - aa, ord=1))
+    # print(act.shape) 2000,6
+    # print(FRUITS.shape) 64,6
     act_precition = cnt1 / len(act)
     act_recall = cnt2 / len(FRUITS)
-    act_f1 = 2 * act_precition * act_recall / (act_precition + act_recall)
+    act_f1 = 2 * act_precition * act_recall / (act_precition + act_recall) # coverage ratio
     pred_f1 = 0.0
     pred_precition = 0.0
     pred_recall = 0.0
@@ -570,7 +587,6 @@ if args.pltpareto:
     fruit_x, fruit_y = matrix2lists(fruit)
     act_x, act_y = matrix2lists(act)
     pred_x, pred_y = matrix2lists(pred)
-
     # Create and style traces
     trace_pareto = dict(x=fruit_x,
                         y=fruit_y,
@@ -580,7 +596,6 @@ if args.pltpareto:
                             symbol="circle",
                             size=10),
                         name='Pareto')
-
     act_pareto = dict(x=act_x,
                       y=act_y,
                       mode="markers",
@@ -606,13 +621,13 @@ if args.pltpareto:
     print("Recall: policy-{}|prediction-{}".format(act_recall, pred_recall))
     print("F1: policy-{}|prediction-{}".format(act_f1, pred_f1))
 
-    # send to visdom
-    if args.method == "crl-naive":
-        vis._send({'data': [trace_pareto, act_pareto], 'layout': layout})
-    elif args.method == "crl-envelope":
-        vis._send({'data': [trace_pareto, act_pareto, pred_pareto], 'layout': layout})
-    elif args.method == "crl-energy":
-        vis._send({'data': [trace_pareto, act_pareto, pred_pareto], 'layout': layout})
+    # # send to visdom
+    # if args.method == "crl-naive":
+    #     vis._send({'data': [trace_pareto, act_pareto], 'layout': layout})
+    # elif args.method == "crl-envelope":
+    #     vis._send({'data': [trace_pareto, act_pareto, pred_pareto], 'layout': layout})
+    # elif args.method == "crl-energy":
+    #     vis._send({'data': [trace_pareto, act_pareto, pred_pareto], 'layout': layout})
 
 ################# HEATMAP #################
 
