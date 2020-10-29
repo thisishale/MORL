@@ -40,7 +40,7 @@ parser.add_argument('--mergecontrol', default=False, action='store_true',
 # LOG & SAVING
 parser.add_argument('--replot', default=False, action='store_true',
                     help='replot if there is a result_storage')
-parser.add_argument('--save', default='crl/naive/saved/', metavar='SAVE',
+parser.add_argument('--save', default='/crl/naive/saved/', metavar='SAVE',
                     help='address for saving trained models')
 parser.add_argument('--name', default='', metavar='name',
                     help='specify a name for saving the model')
@@ -350,7 +350,6 @@ def find_in(A, B, eps=0.2):
 
 
 ################# Control Frontier #################
-
 if args.pltcontrol:
     print('started pltcontrol')
     # setup the environment
@@ -361,11 +360,13 @@ if args.pltcontrol:
     if args.method == 'crl-naive':
         from crl.naive.meta import MetaAgent
     elif args.method == 'crl-envelope':
+        print('about to import MetaAgent')
         from crl.envelope.meta import MetaAgent
     elif args.method == 'crl-energy':
         from crl.energy.meta import MetaAgent
-    print(os.path.exists("{}{}.pkl".format(args.save,"m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name))))
-    print("{}{}.pkl".format(args.save,"m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)))
+    print(os.path.exists("D:/studies/python/programs/github/RL/MORL/synthetic/crl/envelope/saved"))
+
+    # print("{}{}.pkl".format(args.save,"m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)))
     model = torch.load("{}{}.pkl".format(args.save,
                                          "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
     agent = MetaAgent(model, args, is_train=False)
