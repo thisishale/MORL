@@ -325,7 +325,6 @@ def find_in(A, B, eps=0.2):
             if eps > 0.001:
               if np.linalg.norm(a - b, ord=1) < eps*np.linalg.norm(b):
                   cnt1 += 1.0
-                  print('I came here, I shouldnt have come here')
                   break
             else:
               if np.linalg.norm(a - b, ord=1) < 0.5:
@@ -333,10 +332,8 @@ def find_in(A, B, eps=0.2):
                   break
     for b in B:
         for a in A:
-            print(eps)
             if eps > 0.001:
               if np.linalg.norm(a - b, ord=1) < eps*np.linalg.norm(b):
-                  print('I came here, I shouldnt have come here')
                   cnt2 += 1.0
                   break
             else:
@@ -444,6 +441,7 @@ if args.pltcontrol:
     policy_loss = 0.0
     predict_loss = 0.0
     TEST_N = 5000.0
+    #adaptation error
     for i in range(int(TEST_N)):
         w = np.random.randn(6)
         w = np.abs(w) / np.linalg.norm(w, ord=1)
@@ -545,14 +543,14 @@ if args.pltpareto:
     act = np.array(act)
     cnt1, cnt2 = find_in(act, FRUITS, 0.0)
     print(cnt1, cnt2)
-    aa=0
-    while True:
-        aa = aa+1
-    aa = np.array([[11,22,33],[22,33,44]])
-    bb = np.array([[11,12,13],[22,33,44]])
-    c1, c2 = find_in(aa, bb, 0.0)
-    print(c1)
-    print(c2)
+    # aa=0
+    # while True:
+    #     aa = aa+1
+    # aa = np.array([[11,22,33],[22,33,44]])
+    # bb = np.array([[11,12,13],[22,33,44]])
+    # c1, c2 = find_in(aa, bb, 0.0)
+    # print(c1)
+    # print(c2)
     # print(np.linalg.norm(aa - bb, ord=1))
     # print(np.linalg.norm(bb - aa, ord=1))
     # print(act.shape) 2000,6
@@ -569,6 +567,7 @@ if args.pltpareto:
     else:
         pred = np.array(pred)
         cnt1, cnt2 = find_in(pred, FRUITS)
+        print(cnt1, cnt2)
         pred_precition = cnt1 / len(pred)
         pred_recall = cnt2 / len(FRUITS)
         if pred_precition > 1e-8 and pred_recall > 1e-8:
