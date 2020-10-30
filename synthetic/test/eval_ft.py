@@ -543,6 +543,8 @@ if args.pltpareto:
     act = np.array(act)
     cnt1, cnt2 = find_in(act, FRUITS, 0.0)
     print(cnt1, cnt2)
+    np.savetxt('./txtfiles/act.txt',act)
+    np.savetxt('./txtfiles/FRUITS.txt',FRUITS)
     # aa=0
     # while True:
     #     aa = aa+1
