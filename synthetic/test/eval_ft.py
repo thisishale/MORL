@@ -441,6 +441,7 @@ if args.pltcontrol:
 
     ## quantitative evaluation
     policy_loss = 0.0
+    policy_loss2 = 0.0
     predict_loss = 0.0
     TEST_N = 5000.0
     #adaptation error
@@ -454,9 +455,10 @@ if args.pltcontrol:
         elif args.method == 'crl-energy':
             hq, _ = agent.predict(torch.from_numpy(w).type(FloatTensor), alpha=1e-5)
         realc = real_sol.dot(w).max() * w_e
-        print(real_sol.dot(w).max())
-        print(w)
-        print(w_e)
+        realc2 = real_sol.dot(w).max() 
+        # print(real_sol.dot(w).max())
+        # print(w)
+        # print(w_e)
         qc = w_e
         if args.method == 'crl-naive':
             qc = hq.data[0] * w_e
@@ -477,21 +479,25 @@ if args.pltcontrol:
             ttrw = ttrw + reward * np.power(args.gamma, cnt)
             cnt += 1
         ttrw_w = w.dot(ttrw) * w_e
+        ttrw_w2 = w.dot(ttrw) 
 
         base = np.linalg.norm(realc, ord=2)
         policy_loss += np.linalg.norm(realc - ttrw_w, ord=2)/base
         predict_loss += np.linalg.norm(realc - qc, ord=2)/base
+        base2 = realc2
+        policy_loss2 += np.abs(realc2 - ttrw_w2)/base2
 
     policy_loss /= TEST_N / 100
+    policy_loss2 /= TEST_N / 100
     predict_loss /= TEST_N / 100
 
-
     print("discrepancies (100*err): policy-{}|predict-{}".format(policy_loss, predict_loss))
+    print("discrepancies (100*err): policy2-{}|predict-{}".format(policy_loss2, predict_loss))
 
-    layout_opt = dict(title="FT Control Frontier - {} {}({:.3f}|{:.3f})".format(
-        args.method, args.name, policy_loss, predict_loss),
-        xaxis=dict(title='1st objective'),
-        yaxis=dict(title='2nd objective'))
+    # layout_opt = dict(title="FT Control Frontier - {} {}({:.3f}|{:.3f})".format(
+    #     args.method, args.name, policy_loss, predict_loss),
+    #     xaxis=dict(title='1st objective'),
+    #     yaxis=dict(title='2nd objective'))
 
     # vis._send({'data': [trace_opt, act_opt, q_opt], 'layout': layout_opt})
 
