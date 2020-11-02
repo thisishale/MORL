@@ -35,7 +35,6 @@ class EnvelopeLinearCQN(torch.nn.Module):
                                  (state_size + reward_size) * 32)
         self.affine5 = nn.Linear((state_size + reward_size) * 32,
                                  action_size * reward_size)
-
     def H(self, Q, w, s_num, w_num):
         # Q [2,6]
         # w [1,6]
@@ -127,6 +126,7 @@ class EnvelopeLinearCQN(torch.nn.Module):
         x = F.relu(self.affine4(x))
         # print(x.shape) [1,256]
         q = self.affine5(x)
+        # print(q.shape)
         # print(q.shape) [1,12]
         q = q.view(q.size(0), self.action_size, self.reward_size)
         # [1,2,6]

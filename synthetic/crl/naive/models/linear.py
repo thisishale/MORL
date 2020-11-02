@@ -38,5 +38,8 @@ class NaiveLinearCQN(torch.nn.Module):
         x = F.relu(self.affine3(x))
         x = F.relu(self.affine4(x))
         q = self.affine5(x)
+        #(8192,2)
+        #print(q.shape)
         hq = q.detach().max(dim=1)[0]
+        #print(hq.shape)#(8192)
         return hq, q

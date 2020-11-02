@@ -488,7 +488,7 @@ if args.pltcontrol:
         xaxis=dict(title='1st objective'),
         yaxis=dict(title='2nd objective'))
 
-    vis._send({'data': [trace_opt, act_opt, q_opt], 'layout': layout_opt})
+    # vis._send({'data': [trace_opt, act_opt, q_opt], 'layout': layout_opt})
 
 ################# Pareto Frontier #################
 

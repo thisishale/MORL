@@ -73,7 +73,7 @@ class MetaAgent(object):
         _, Q = self.model_(
             Variable(state.unsqueeze(0), requires_grad=False),
             Variable(preference.unsqueeze(0), requires_grad=False))
-
+        # print(Q.shape)
         action = Q.max(1)[1].data.cpu().numpy()
         action = int(action[0])
 
@@ -184,6 +184,7 @@ class MetaAgent(object):
                                Variable(w_batch, requires_grad=False))
             _, act = self.model_(Variable(torch.cat(next_state_batch, dim=0), requires_grad=False),
                                  Variable(w_batch, requires_grad=False))[1].max(1)
+            # print(act.shape) 8192
             HQ = DQ.gather(1, act.unsqueeze(dim=1)).squeeze()
 
             w_reward_batch = torch.bmm(w_batch.unsqueeze(1),
