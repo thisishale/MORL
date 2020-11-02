@@ -4,6 +4,7 @@ import visdom
 import torch
 import numpy as np
 from sklearn.manifold import TSNE
+import copy
 
 import sys
 import os
@@ -305,6 +306,7 @@ FRUITS_DITC = {'6':
 # print(len(FRUITS_DITC['6'])) 64
 # apply gamma
 env_ind = {'ft':'6', 'ft5':'5', 'ft7':'7'}[args.env_name]
+F = copy.deepcopy(FRUITS_DITC[env_ind])
 FRUITS = np.array(FRUITS_DITC[env_ind]) * np.power(args.gamma, 5)
 
 
@@ -452,6 +454,9 @@ if args.pltcontrol:
         elif args.method == 'crl-energy':
             hq, _ = agent.predict(torch.from_numpy(w).type(FloatTensor), alpha=1e-5)
         realc = real_sol.dot(w).max() * w_e
+        print(real_sol.dot(w).max())
+        print(w)
+        print(w_e)
         qc = w_e
         if args.method == 'crl-naive':
             qc = hq.data[0] * w_e
@@ -533,6 +538,17 @@ if args.pltpareto:
             state = env.observe()
             action = agent.act(state, preference=torch.from_numpy(w).type(FloatTensor))
             next_state, reward, terminal = env.step(action)
+            # print(reward)
+            # if reward is not [0, 0, 0, 0, 0, 0]:
+            #     x = F-reward
+            #     print('*'*20)
+            #     for i in x:
+            #         for j in i:
+            #             if j == 0:
+            #                 print('it is zero')
+            #                 print('I passed')
+                # print(x)
+            # print(reward)
             if cnt > 50:
                 terminal = True
             ttrw = ttrw + reward * np.power(args.gamma, cnt)
@@ -542,6 +558,7 @@ if args.pltpareto:
     # print(act)
     act = np.array(act)
     cnt1, cnt2 = find_in(act, FRUITS, 0.0)
+    # cnt2 = 64
     print(cnt1, cnt2)
     np.savetxt('./txtfiles/act.txt',act)
     np.savetxt('./txtfiles/FRUITS.txt',FRUITS)
