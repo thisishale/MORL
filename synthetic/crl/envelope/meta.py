@@ -50,17 +50,23 @@ class MetaAgent(object):
         self.beta            = args.beta
         # 0.01
         self.beta_init       = args.beta
+        self.beta_loss       = -0.01
         self.homotopy        = args.homotopy
         # true
         self.beta_uplim      = 1.00
         self.tau             = 1000.
         self.beta_expbase    = float(np.power(self.tau*(self.beta_uplim-self.beta), 1./args.episode_num))
         self.beta_delta      = self.beta_expbase / self.tau
-
+        self.loss_iter = 100
         self.trans_mem = deque()
         self.trans = namedtuple('trans', ['s', 'a', 's_', 'r', 'd'])
         self.priority_mem = deque()
-
+        self.loss_memory = np.zeros((self.loss_iter, self.batch_size*self.weight_num, 6))
+        # print('*'*100)
+        # print(self.loss_memory.shape)
+        self.mean_ = np.zeros((6,1))
+        self.cov_ = np.ones((6,1))
+        self.mean_vec = 0
         if args.optimizer == 'Adam':
             self.optimizer = optim.Adam(self.model_.parameters(), lr=args.lr)
         elif args.optimizer == 'RMSprop':
@@ -69,6 +75,7 @@ class MetaAgent(object):
         self.w_kept = None
         self.update_count = 0
         self.update_freq = args.update_freq
+        self.count = 0
         # 100
 
         if self.is_train:
@@ -192,114 +199,129 @@ class MetaAgent(object):
         return inds
 
     def learn(self):
-        if len(self.trans_mem) > self.batch_size:
+        for l_iter in range(100):
+            if len(self.trans_mem) > self.batch_size:
 
-            self.update_count += 1
-            # target model is 
-            action_size = self.model_.action_size
-            reward_size = self.model_.reward_size
-            # print(action_size) 2
-            # print(reward_size) 6
-            minibatch = self.sample(self.trans_mem, self.priority_mem, self.batch_size)
-            # print(len(minibatch)) 256
-            # minibatch shape: (256,5,...(depends on what it is(state, next state, reward...)))
-            # print(len(minibatch[0])) 5 
-            # print(len(minibatch[0][0])) 2 state 
-            # print(len(minibatch[0][1])) 0 int action
-            # print(len(minibatch[0][2])) 2 next state
-            # print(len(minibatch[0][3])) 6 reward
-            # print(len(minibatch[0][4])) 0 bool  terminal or not
-            # minibatch = random.sample(self.trans_mem, self.batch_size)
-            batchify = lambda x: list(x) * self.weight_num
-            state_batch = batchify(map(lambda x: x.s.unsqueeze(0), minibatch))
-            # print(len(state_batch)) 8192
-            # print(minibatch[0].s.shape) 2
-            # print(minibatch[0].s.unsqueeze(0).shape) (1,2)
-            # len(list(map(lambda x: x.s.unsqueeze(0), minibatch))) 256
-            # len(list(map(lambda x: x.s.unsqueeze(0), minibatch))[0]) 1
-            # len(list(map(lambda x: x.s.unsqueeze(0), minibatch))[0]) 2
-            # so it gets repeated since it gets multiplied by 32 which is the weight_num.
-            # it gets repeated for them all.
-            # a is int, convert it to longtensor.
-            action_batch = batchify(map(lambda x: LongTensor([x.a]), minibatch)) 
-            reward_batch = batchify(map(lambda x: x.r.unsqueeze(0), minibatch))
-            next_state_batch = batchify(map(lambda x: x.s_.unsqueeze(0), minibatch))
-            terminal_batch = batchify(map(lambda x: x.d, minibatch))
-            # so what i understand from this code is that, we found actions using diffeent preferences, 
-            # and we found trajectories, then found probability of choosing each trajectory using a 
-            # different random weights. and now we are training the model using different random weights, 
-            # not the weights the model was trained with.
-            w_batch = np.random.randn(self.weight_num, reward_size)
-            # print(w_batch.shape) 32, 6
-            w_batch = np.abs(w_batch) / \
-                      np.linalg.norm(w_batch, ord=1, axis=1, keepdims=True)
-            # print(w_batch.shape) 32, 6
-            w_batch = torch.from_numpy(w_batch.repeat(self.batch_size, axis=0)).type(FloatTensor)
-            # print(w_batch.shape) 8192,6
-            __, Q = self.model_(Variable(torch.cat(state_batch, dim=0)),
-                                Variable(w_batch), w_num=self.weight_num)
-            # print(Q.shape) 8192, 2, 6
-            # detach since we don't want gradients to propagate
-            # HQ, _    = self.model_(Variable(torch.cat(next_state_batch, dim=0), volatile=True),
-            # 					  Variable(w_batch, volatile=True), w_num=self.weight_num)
-            _, DQ = self.model(Variable(torch.cat(next_state_batch, dim=0), requires_grad=False),
-                               Variable(w_batch, requires_grad=False))
-            # print(DQ.shape) 8192, 2, 6
-            w_ext = w_batch.unsqueeze(2).repeat(1, action_size, 1)
-            # print(w_ext.shape) 8192, 12, 1
-            w_ext = w_ext.view(-1, self.model.reward_size)
-            # print(w_ext.shape) 16384, 6
-            _, tmpQ = self.model_(Variable(torch.cat(next_state_batch, dim=0), requires_grad=False),
-                                  Variable(w_batch, requires_grad=False))
-            # print(tmpQ.shape) [8192, 2, 6]
-            tmpQ = tmpQ.view(-1, reward_size)
-            # print(tmpQ.shape) 16384, 6
-            # print(torch.bmm(w_ext.unsqueeze(1),
-            # 			    tmpQ.data.unsqueeze(2)).view(-1, action_size))
-            act = torch.bmm(Variable(w_ext.unsqueeze(1), requires_grad=False),
-                            tmpQ.unsqueeze(2)).view(-1, action_size).max(1)[1]
-            # act 8192
-            # print(DQ.size(2)) 6
-            HQ = DQ.gather(1, act.view(-1, 1, 1).expand(DQ.size(0), 1, DQ.size(2))).squeeze()
-            # print(HQ.shape)
-            # 8192, 6
-            nontmlmask = self.nontmlinds(terminal_batch)
-            with torch.no_grad():
-                Tau_Q = Variable(torch.zeros(self.batch_size * self.weight_num,
-                                             reward_size).type(FloatTensor))
-                Tau_Q[nontmlmask] = self.gamma * HQ[nontmlmask]
-                # Tau_Q.volatile = False
-                Tau_Q += Variable(torch.cat(reward_batch, dim=0))
+                self.update_count += 1
+                # target model is 
+                action_size = self.model_.action_size
+                reward_size = self.model_.reward_size
+                # print(action_size) 2
+                # print(reward_size) 6
+                minibatch = self.sample(self.trans_mem, self.priority_mem, self.batch_size)
+                # print(len(minibatch)) 256
+                # minibatch shape: (256,5,...(depends on what it is(state, next state, reward...)))
+                # print(len(minibatch[0])) 5 
+                # print(len(minibatch[0][0])) 2 state 
+                # print(len(minibatch[0][1])) 0 int action
+                # print(len(minibatch[0][2])) 2 next state
+                # print(len(minibatch[0][3])) 6 reward
+                # print(len(minibatch[0][4])) 0 bool  terminal or not
+                # minibatch = random.sample(self.trans_mem, self.batch_size)
+                batchify = lambda x: list(x) * self.weight_num
+                state_batch = batchify(map(lambda x: x.s.unsqueeze(0), minibatch))
+                # print(len(state_batch)) 8192
+                # print(minibatch[0].s.shape) 2
+                # print(minibatch[0].s.unsqueeze(0).shape) (1,2)
+                # len(list(map(lambda x: x.s.unsqueeze(0), minibatch))) 256
+                # len(list(map(lambda x: x.s.unsqueeze(0), minibatch))[0]) 1
+                # len(list(map(lambda x: x.s.unsqueeze(0), minibatch))[0]) 2
+                # so it gets repeated since it gets multiplied by 32 which is the weight_num.
+                # it gets repeated for them all.
+                # a is int, convert it to longtensor.
+                action_batch = batchify(map(lambda x: LongTensor([x.a]), minibatch)) 
+                reward_batch = batchify(map(lambda x: x.r.unsqueeze(0), minibatch))
+                next_state_batch = batchify(map(lambda x: x.s_.unsqueeze(0), minibatch))
+                terminal_batch = batchify(map(lambda x: x.d, minibatch))
+                # so what i understand from this code is that, we found actions using diffeent preferences, 
+                # and we found trajectories, then found probability of choosing each trajectory using a 
+                # different random weights. and now we are training the model using different random weights, 
+                # not the weights the model was trained with.
+                if self.count<100: 
+                    w_batch = np.random.randn(self.weight_num, reward_size)
+                    print(w_batch.shape)
+                else:
+                    tmpmu = np.mean(np.mean(self.last_loss_memory, axis=0),axis=0)
+                    print(tmpmu.shape)
+                    for i in range(len(tmpmu)):
+                        self.mean_vec += np.exp(self.beta_loss*tmpmu[i])
+                    self.mean_ = np.exp(self.beta_loss*tmpmu)/self.mean_vec
+                    # w_batch = np.random.normal(self.mean_,self.cov_,)
+                    w_batch = np.random.normal(self.mean_.squeeze(),self.cov_.squeeze(),(self.weight_num, reward_size))
+                    print(w_batch.shape)
+                # print(w_batch.shape) 32, 6
+                w_batch = np.abs(w_batch) / \
+                        np.linalg.norm(w_batch, ord=1, axis=1, keepdims=True)
+                # print(w_batch.shape) 32, 6
+                w_batch = torch.from_numpy(w_batch.repeat(self.batch_size, axis=0)).type(FloatTensor)
+                # print(w_batch.shape) 8192,6
+                __, Q = self.model_(Variable(torch.cat(state_batch, dim=0)),
+                                    Variable(w_batch), w_num=self.weight_num)
+                # print(Q.shape) 8192, 2, 6
+                # detach since we don't want gradients to propagate
+                # HQ, _    = self.model_(Variable(torch.cat(next_state_batch, dim=0), volatile=True),
+                # 					  Variable(w_batch, volatile=True), w_num=self.weight_num)
+                _, DQ = self.model(Variable(torch.cat(next_state_batch, dim=0), requires_grad=False),
+                                Variable(w_batch, requires_grad=False))
+                # print(DQ.shape) 8192, 2, 6
+                w_ext = w_batch.unsqueeze(2).repeat(1, action_size, 1)
+                # print(w_ext.shape) 8192, 12, 1
+                w_ext = w_ext.view(-1, self.model.reward_size)
+                # print(w_ext.shape) 16384, 6
+                _, tmpQ = self.model_(Variable(torch.cat(next_state_batch, dim=0), requires_grad=False),
+                                    Variable(w_batch, requires_grad=False))
+                # print(tmpQ.shape) [8192, 2, 6]
+                tmpQ = tmpQ.view(-1, reward_size)
+                # print(tmpQ.shape) 16384, 6
+                # print(torch.bmm(w_ext.unsqueeze(1),
+                # 			    tmpQ.data.unsqueeze(2)).view(-1, action_size))
+                act = torch.bmm(Variable(w_ext.unsqueeze(1), requires_grad=False),
+                                tmpQ.unsqueeze(2)).view(-1, action_size).max(1)[1]
+                # act 8192
+                # print(DQ.size(2)) 6
+                HQ = DQ.gather(1, act.view(-1, 1, 1).expand(DQ.size(0), 1, DQ.size(2))).squeeze()
+                # print(HQ.shape)
+                # 8192, 6
+                nontmlmask = self.nontmlinds(terminal_batch)
+                with torch.no_grad():
+                    Tau_Q = Variable(torch.zeros(self.batch_size * self.weight_num,
+                                                reward_size).type(FloatTensor))
+                    Tau_Q[nontmlmask] = self.gamma * HQ[nontmlmask]
+                    # Tau_Q.volatile = False
+                    Tau_Q += Variable(torch.cat(reward_batch, dim=0))
 
-            actions = Variable(torch.cat(action_batch, dim=0))
+                actions = Variable(torch.cat(action_batch, dim=0))
 
-            Q = Q.gather(1, actions.view(-1, 1, 1).expand(Q.size(0), 1, Q.size(2))
-                         ).view(-1, reward_size)
-            Tau_Q = Tau_Q.view(-1, reward_size)
+                Q = Q.gather(1, actions.view(-1, 1, 1).expand(Q.size(0), 1, Q.size(2))
+                            ).view(-1, reward_size)
+                Tau_Q = Tau_Q.view(-1, reward_size)
 
-            wQ = torch.bmm(Variable(w_batch.unsqueeze(1)),
-                           Q.unsqueeze(2)).squeeze()
+                wQ = torch.bmm(Variable(w_batch.unsqueeze(1)),
+                            Q.unsqueeze(2)).squeeze()
 
-            wTQ = torch.bmm(Variable(w_batch.unsqueeze(1)),
-                            Tau_Q.unsqueeze(2)).squeeze()
+                wTQ = torch.bmm(Variable(w_batch.unsqueeze(1)),
+                                Tau_Q.unsqueeze(2)).squeeze()
 
-            # loss = F.mse_loss(Q.view(-1), Tau_Q.view(-1))
-            # print((1-self.beta) * F.mse_loss(Q.view(-1), Tau_Q.view(-1)))
-            # print(wTQ.view(-1))
-            loss = self.beta * F.mse_loss(wQ.view(-1), wTQ.view(-1))
-            loss += (1-self.beta) * F.mse_loss(Q.view(-1), Tau_Q.view(-1))
-            print(loss)
-            self.optimizer.zero_grad()
-            loss.backward()
-            for param in self.model_.parameters():
-                param.grad.data.clamp_(-1, 1)
-            self.optimizer.step()
+                # loss = F.mse_loss(Q.view(-1), Tau_Q.view(-1))
+                # print((1-self.beta) * F.mse_loss(Q.view(-1), Tau_Q.view(-1)))
+                # print(wTQ.view(-1))
+                loss = self.beta * F.mse_loss(wQ.view(-1), wTQ.view(-1))
+                loss += (1-self.beta) * F.mse_loss(Q.view(-1), Tau_Q.view(-1))
+                # print(self.loss_memory.shape)
+                self.loss_memory[l_iter,:,:] = (Q-Tau_Q).detach().numpy()
+                self.optimizer.zero_grad()
+                loss.backward()
+                for param in self.model_.parameters():
+                    param.grad.data.clamp_(-1, 1)
+                self.optimizer.step()
 
-            if self.update_count % self.update_freq == 0:
-                self.model.load_state_dict(self.model_.state_dict())
+                if self.update_count % self.update_freq == 0:
+                    self.model.load_state_dict(self.model_.state_dict())
+                self.count = self.count + 1
+                
+                return loss.data
 
-            return loss.data
-
+        self.last_loss_memory = copy.deepcopy(self.loss_memory)
         return 0.0
 
     def reset(self):
