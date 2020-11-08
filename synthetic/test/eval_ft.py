@@ -5,9 +5,10 @@ import torch
 import numpy as np
 from sklearn.manifold import TSNE
 import copy
-
 import sys
 import os
+
+from linear import EnvelopeLinearCQN
 
 PACKAGE_PARENT = '..'
 SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
@@ -35,6 +36,8 @@ parser.add_argument('--pltdemo', default=False, action='store_true',
                     help='plot demo')
 # LOG & SAVING
 parser.add_argument('--save', default='crl/naive/saved/', metavar='SAVE',
+                    help='address for saving trained models')
+parser.add_argument('--save-mean', default='crl/naive/mean/', metavar='SAVE_MEAN',
                     help='address for saving trained models')
 parser.add_argument('--name', default='', metavar='name',
                     help='specify a name for saving the model')
@@ -361,9 +364,18 @@ if args.pltcontrol:
         from crl.envelope.meta import MetaAgent
     elif args.method == 'crl-energy':
         from crl.energy.meta import MetaAgent
-    model = torch.load("{}{}.pkl".format(args.save,
+    ckpt = torch.load("{}{}.pkl".format(args.save,
                                          "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
+    state_size = len(env.state_spec)
+    action_size = env.action_spec[2][1] - env.action_spec[2][0]
+    reward_size = len(env.reward_spec)
+    model = EnvelopeLinearCQN(state_size, action_size, reward_size)
+    model.load_state_dict(ckpt['state_dict'])
+    device = torch.device('cpu')
+    model = model.to(device)
     agent = MetaAgent(model, args, is_train=False)
+    mean_vec = ckpt['mean_']
+    cov_vec = np.ones((6,1))
 
     # compute opt
     opt_x = []
@@ -375,7 +387,8 @@ if args.pltcontrol:
     real_sol = FRUITS
 
     for i in range(2000):
-        w = np.random.randn(6)
+        # w = np.random.randn(6)
+        w = np.random.normal(mean_vec.squeeze(),cov_vec.squeeze())
         w[2], w[3], w[4], w[5] = 0, 0, 0, 0
         w = np.abs(w) / np.linalg.norm(w, ord=1)
         # w = np.random.dirichlet(np.ones(2))
@@ -516,18 +529,27 @@ if args.pltpareto:
         from crl.envelope.meta import MetaAgent
     elif args.method == 'crl-energy':
         from crl.energy.meta import MetaAgent
-    model = torch.load("{}{}.pkl".format(args.save,
+    ckpt = torch.load("{}{}.pkl".format(args.save,
                                          "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
+    state_size = len(env.state_spec)
+    action_size = env.action_spec[2][1] - env.action_spec[2][0]
+    reward_size = len(env.reward_spec)
+    model = EnvelopeLinearCQN(state_size, action_size, reward_size)
+    model.load_state_dict(ckpt['state_dict'])
+    device = torch.device('cpu')
+    model = model.to(device)
     agent = MetaAgent(model, args, is_train=False)
-
+    mean_vec = ckpt['mean_']
+    cov_vec = np.ones((6,1))
     # compute recovered Pareto
     act = []
 
     # predicted solution
     pred = []
-
+    cov_vec = np.ones((6,1))
     for i in range(2000):
-        w = np.random.randn(6)
+        # w = np.random.randn(6)
+        w = np.random.normal(mean_vec.squeeze(),cov_vec.squeeze())
         w = np.abs(w) / np.linalg.norm(w, ord=1)
         # w = np.random.dirichlet(np.ones(6))
         ttrw = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
