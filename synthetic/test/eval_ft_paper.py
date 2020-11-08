@@ -1,14 +1,12 @@
 from __future__ import absolute_import, division, print_function
 import argparse
-import visdom
+# import visdom
 import torch
 import numpy as np
 from sklearn.manifold import TSNE
-import copy
+
 import sys
 import os
-
-from linear import EnvelopeLinearCQN
 
 PACKAGE_PARENT = '..'
 SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
@@ -36,8 +34,6 @@ parser.add_argument('--pltdemo', default=False, action='store_true',
                     help='plot demo')
 # LOG & SAVING
 parser.add_argument('--save', default='crl/naive/saved/', metavar='SAVE',
-                    help='address for saving trained models')
-parser.add_argument('--save-mean', default='crl/naive/mean/', metavar='SAVE_MEAN',
                     help='address for saving trained models')
 parser.add_argument('--name', default='', metavar='name',
                     help='specify a name for saving the model')
@@ -309,7 +305,6 @@ FRUITS_DITC = {'6':
 # print(len(FRUITS_DITC['6'])) 64
 # apply gamma
 env_ind = {'ft':'6', 'ft5':'5', 'ft7':'7'}[args.env_name]
-# F = copy.deepcopy(FRUITS_DITC[env_ind])
 FRUITS = np.array(FRUITS_DITC[env_ind]) * np.power(args.gamma, 5)
 
 
@@ -345,7 +340,6 @@ def find_in(A, B, eps=0.2):
               if np.linalg.norm(a - b, ord=1) < 0.5:
                   cnt2 += 1.0
                   break
-                  
     return cnt1, cnt2
 
 
@@ -364,18 +358,9 @@ if args.pltcontrol:
         from crl.envelope.meta import MetaAgent
     elif args.method == 'crl-energy':
         from crl.energy.meta import MetaAgent
-    ckpt = torch.load("{}{}.pkl".format(args.save,
+    model = torch.load("{}{}.pkl".format(args.save,
                                          "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
-    state_size = len(env.state_spec)
-    action_size = env.action_spec[2][1] - env.action_spec[2][0]
-    reward_size = len(env.reward_spec)
-    model = EnvelopeLinearCQN(state_size, action_size, reward_size)
-    model.load_state_dict(ckpt['state_dict'])
-    device = torch.device('cpu')
-    model = model.to(device)
     agent = MetaAgent(model, args, is_train=False)
-    mean_vec = ckpt['mean_']
-    cov_vec = np.ones((6,1))
 
     # compute opt
     opt_x = []
@@ -387,8 +372,7 @@ if args.pltcontrol:
     real_sol = FRUITS
 
     for i in range(2000):
-        # w = np.random.randn(6)
-        w = np.random.normal(mean_vec.squeeze(),cov_vec.squeeze())
+        w = np.random.randn(6)
         w[2], w[3], w[4], w[5] = 0, 0, 0, 0
         w = np.abs(w) / np.linalg.norm(w, ord=1)
         # w = np.random.dirichlet(np.ones(2))
@@ -454,13 +438,10 @@ if args.pltcontrol:
 
     ## quantitative evaluation
     policy_loss = 0.0
-    policy_loss2 = 0.0
     predict_loss = 0.0
     TEST_N = 5000.0
-    #adaptation error
     for i in range(int(TEST_N)):
-        # w = np.random.randn(6)
-        w = np.random.normal(mean_vec.squeeze(),cov_vec.squeeze())
+        w = np.random.randn(6)
         w = np.abs(w) / np.linalg.norm(w, ord=1)
         # w = np.random.dirichlet(np.ones(2))
         w_e = w / np.linalg.norm(w, ord=2)
@@ -469,10 +450,6 @@ if args.pltcontrol:
         elif args.method == 'crl-energy':
             hq, _ = agent.predict(torch.from_numpy(w).type(FloatTensor), alpha=1e-5)
         realc = real_sol.dot(w).max() * w_e
-        realc2 = real_sol.dot(w).max() 
-        # print(real_sol.dot(w).max())
-        # print(w)
-        # print(w_e)
         qc = w_e
         if args.method == 'crl-naive':
             qc = hq.data[0] * w_e
@@ -493,25 +470,21 @@ if args.pltcontrol:
             ttrw = ttrw + reward * np.power(args.gamma, cnt)
             cnt += 1
         ttrw_w = w.dot(ttrw) * w_e
-        ttrw_w2 = w.dot(ttrw) 
 
         base = np.linalg.norm(realc, ord=2)
         policy_loss += np.linalg.norm(realc - ttrw_w, ord=2)/base
         predict_loss += np.linalg.norm(realc - qc, ord=2)/base
-        base2 = realc2
-        policy_loss2 += np.abs(realc2 - ttrw_w2)/base2
 
     policy_loss /= TEST_N / 100
-    policy_loss2 /= TEST_N / 100
     predict_loss /= TEST_N / 100
 
-    print("discrepancies (100*err): policy-{}|predict-{}".format(policy_loss, predict_loss))
-    print("discrepancies (100*err): policy2-{}|predict-{}".format(policy_loss2, predict_loss))
 
-    # layout_opt = dict(title="FT Control Frontier - {} {}({:.3f}|{:.3f})".format(
-    #     args.method, args.name, policy_loss, predict_loss),
-    #     xaxis=dict(title='1st objective'),
-    #     yaxis=dict(title='2nd objective'))
+    print("discrepancies (100*err): policy-{}|predict-{}".format(policy_loss, predict_loss))
+
+    layout_opt = dict(title="FT Control Frontier - {} {}({:.3f}|{:.3f})".format(
+        args.method, args.name, policy_loss, predict_loss),
+        xaxis=dict(title='1st objective'),
+        yaxis=dict(title='2nd objective'))
 
     # vis._send({'data': [trace_opt, act_opt, q_opt], 'layout': layout_opt})
 
@@ -530,28 +503,18 @@ if args.pltpareto:
         from crl.envelope.meta import MetaAgent
     elif args.method == 'crl-energy':
         from crl.energy.meta import MetaAgent
-    ckpt = torch.load("{}{}.pkl".format(args.save,
+    model = torch.load("{}{}.pkl".format(args.save,
                                          "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
-    state_size = len(env.state_spec)
-    action_size = env.action_spec[2][1] - env.action_spec[2][0]
-    reward_size = len(env.reward_spec)
-    model = EnvelopeLinearCQN(state_size, action_size, reward_size)
-    model.load_state_dict(ckpt['state_dict'])
-    device = torch.device('cpu')
-    model = model.to(device)
     agent = MetaAgent(model, args, is_train=False)
-    mean_vec = ckpt['mean_']
-    cov_vec = np.ones((6,1))
+
     # compute recovered Pareto
     act = []
 
     # predicted solution
     pred = []
-    cov_vec = np.ones((6,1))
+
     for i in range(2000):
-        # w = np.random.randn(6)
-        w = np.random.normal(mean_vec.squeeze(),cov_vec.squeeze())
-        print(mean_vec)
+        w = np.random.randn(6)
         w = np.abs(w) / np.linalg.norm(w, ord=1)
         # w = np.random.dirichlet(np.ones(6))
         ttrw = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
@@ -568,45 +531,18 @@ if args.pltpareto:
             state = env.observe()
             action = agent.act(state, preference=torch.from_numpy(w).type(FloatTensor))
             next_state, reward, terminal = env.step(action)
-            # print(reward)
-            # if reward is not [0, 0, 0, 0, 0, 0]:
-            #     x = F-reward
-            #     print('*'*20)
-            #     for i in x:
-            #         for j in i:
-            #             if j == 0:
-            #                 print('it is zero')
-            #                 print('I passed')
-                # print(x)
-            # print(reward)
             if cnt > 50:
                 terminal = True
             ttrw = ttrw + reward * np.power(args.gamma, cnt)
             cnt += 1
 
         act.append(ttrw)
-    # print(act)
+
     act = np.array(act)
     cnt1, cnt2 = find_in(act, FRUITS, 0.0)
-    # cnt2 = 64
-    print(cnt1, cnt2)
-    np.savetxt('./txtfiles/act.txt',act)
-    np.savetxt('./txtfiles/FRUITS.txt',FRUITS)
-    # aa=0
-    # while True:
-    #     aa = aa+1
-    # aa = np.array([[11,22,33],[22,33,44]])
-    # bb = np.array([[11,12,13],[22,33,44]])
-    # c1, c2 = find_in(aa, bb, 0.0)
-    # print(c1)
-    # print(c2)
-    # print(np.linalg.norm(aa - bb, ord=1))
-    # print(np.linalg.norm(bb - aa, ord=1))
-    # print(act.shape) 2000,6
-    # print(FRUITS.shape) 64,6
     act_precition = cnt1 / len(act)
     act_recall = cnt2 / len(FRUITS)
-    act_f1 = 2 * act_precition * act_recall / (act_precition + act_recall) # coverage ratio
+    act_f1 = 2 * act_precition * act_recall / (act_precition + act_recall)
     pred_f1 = 0.0
     pred_precition = 0.0
     pred_recall = 0.0
@@ -616,7 +552,6 @@ if args.pltpareto:
     else:
         pred = np.array(pred)
         cnt1, cnt2 = find_in(pred, FRUITS)
-        print(cnt1, cnt2)
         pred_precition = cnt1 / len(pred)
         pred_recall = cnt2 / len(FRUITS)
         if pred_precition > 1e-8 and pred_recall > 1e-8:
@@ -635,6 +570,7 @@ if args.pltpareto:
     fruit_x, fruit_y = matrix2lists(fruit)
     act_x, act_y = matrix2lists(act)
     pred_x, pred_y = matrix2lists(pred)
+
     # Create and style traces
     trace_pareto = dict(x=fruit_x,
                         y=fruit_y,
@@ -644,6 +580,7 @@ if args.pltpareto:
                             symbol="circle",
                             size=10),
                         name='Pareto')
+
     act_pareto = dict(x=act_x,
                       y=act_y,
                       mode="markers",
@@ -669,7 +606,7 @@ if args.pltpareto:
     print("Recall: policy-{}|prediction-{}".format(act_recall, pred_recall))
     print("F1: policy-{}|prediction-{}".format(act_f1, pred_f1))
 
-    # # send to visdom
+    # send to visdom
     # if args.method == "crl-naive":
     #     vis._send({'data': [trace_pareto, act_pareto], 'layout': layout})
     # elif args.method == "crl-envelope":
@@ -690,4 +627,4 @@ if args.pltmap:
                                size=10),
                            name='Pareto')
     layout = dict(title="FRUITS")
-    vis._send({'data': [trace_fruit_emb], 'layout': layout})
+    # vis._send({'data': [trace_fruit_emb], 'layout': layout})
