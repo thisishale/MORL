@@ -186,7 +186,6 @@ class MetaAgent(object):
                                  Variable(w_batch, requires_grad=False))[1].max(1)
             # print(act.shape) 8192
             HQ = DQ.gather(1, act.unsqueeze(dim=1)).squeeze()
-
             w_reward_batch = torch.bmm(w_batch.unsqueeze(1),
                                        torch.cat(reward_batch, dim=0).unsqueeze(2)
                                        ).squeeze()
@@ -198,10 +197,10 @@ class MetaAgent(object):
                 Tau_Q += Variable(w_reward_batch)
 
             actions = Variable(torch.cat(action_batch, dim=0))
-
+            # print(actions)
             # Compute Huber loss
             loss = F.smooth_l1_loss(Q.gather(1, actions.unsqueeze(dim=1)), Tau_Q.unsqueeze(dim=1))
-
+            # print(Tau_Q)
             self.optimizer.zero_grad()
             loss.backward()
             for param in self.model_.parameters():

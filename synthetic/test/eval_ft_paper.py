@@ -514,7 +514,7 @@ if args.pltpareto:
     pred = []
 
     for i in range(2000):
-        w = np.random.randn(6)
+        w = np.random.uniform(0,1,6)
         w = np.abs(w) / np.linalg.norm(w, ord=1)
         # w = np.random.dirichlet(np.ones(6))
         ttrw = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])

@@ -6,7 +6,7 @@ from torch.autograd import Variable
 import time as Timer
 import math
 import numpy as np
-from linear import EnvelopeLinearCQN
+
 import sys
 import os
 
@@ -257,7 +257,7 @@ if args.pltcontrol:
         xaxis=dict(title='teasure value'),
         yaxis=dict(title='time penalty'))
 
-    vis._send({'data': [trace_opt, q_opt, act_opt], 'layout': layout_opt})
+    # vis._send({'data': [trace_opt, q_opt, act_opt], 'layout': layout_opt})
 
 ################# Pareto Frontier #################
 
@@ -274,18 +274,10 @@ if args.pltpareto:
         from crl.envelope.meta import MetaAgent
     elif args.method == 'crl-energy':
         from crl.energy.meta import MetaAgent
-    ckpt = torch.load("{}{}.pkl".format(args.save,
+    model = torch.load("{}{}.pkl".format(args.save,
                                          "m.{}_e.{}_n.{}".format(args.model, args.env_name, args.name)),map_location='cpu')
-    state_size = len(env.state_spec)
-    action_size = env.action_spec[2][1] - env.action_spec[2][0]
-    reward_size = len(env.reward_spec)
-    model = EnvelopeLinearCQN(state_size, action_size, reward_size)
-    model.load_state_dict(ckpt['state_dict'])
-    device = torch.device('cpu')
-    model = model.to(device)
     agent = MetaAgent(model, args, is_train=False)
-    mean_vec = ckpt['mean_']
-    cov_vec = np.ones((2,1))
+
     # compute recovered Pareto
     act_x = []
     act_y = []
@@ -295,8 +287,7 @@ if args.pltpareto:
     pred_y = []
     pred = []
     for i in range(2000):
-        # w = np.random.randn(2)
-        w = np.random.normal(mean_vec.squeeze(),cov_vec.squeeze())
+        w = np.random.randn(2)
         w = np.abs(w) / np.linalg.norm(w, ord=1)
         # w = np.random.dirichlet(np.ones(2))
         ttrw = np.array([0, 0])
@@ -410,11 +401,11 @@ if args.pltmap:
          [-10, -10, -10, -10, -10, -10, -10, -10, -10, 23.7, 0]]
     )[::-1]
 
-    vis.heatmap(X=see_map,
-                opts=dict(
-                    title="DST Map",
-                    xmin=-10,
-                    xmax=16.6))
+    # vis.heatmap(X=see_map,
+    #             opts=dict(
+    #                 title="DST Map",
+    #                 xmin=-10,
+    #                 xmax=16.6))
 
 if args.pltdemo:
     see_map = np.array(
@@ -452,11 +443,11 @@ if args.pltdemo:
         dy_map = np.copy(see_map)
         dy_map[10 - 0, 0] = -3
 
-        win = vis.heatmap(X=dy_map,
-                          opts=dict(
-                              title="DST Map",
-                              xmin=-10,
-                              xmax=16.6))
+        # win = vis.heatmap(X=dy_map,
+        #                   opts=dict(
+        #                       title="DST Map",
+        #                       xmin=-10,
+        #                       xmax=16.6))
 
         w1 = float(input("treasure weight: "))
         w2 = float(input("time weight: "))
@@ -472,12 +463,12 @@ if args.pltdemo:
             action = agent.act(state, preference=torch.from_numpy(w).type(FloatTensor))
             next_state, reward, terminal = env.step(action)
             dy_map[10 - next_state[0], next_state[1]] = -3
-            vis.heatmap(X=dy_map,
-                        win=win,
-                        opts=dict(
-                            title="DST Map",
-                            xmin=-10,
-                            xmax=14.5))
+            # vis.heatmap(X=dy_map,
+            #             win=win,
+            #             opts=dict(
+            #                 title="DST Map",
+            #                 xmin=-10,
+            #                 xmax=14.5))
             Timer.sleep(.5)
             if cnt > 50:
                 terminal = True

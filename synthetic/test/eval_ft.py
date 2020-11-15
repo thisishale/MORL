@@ -549,8 +549,8 @@ if args.pltpareto:
     pred = []
     cov_vec = np.ones((6,1))
     for i in range(2000):
-        w = np.random.randn(6)
-        # w = np.random.normal(mean_vec.squeeze(),cov_vec.squeeze())
+        # w = np.random.randn(6)
+        w = np.random.normal(mean_vec.squeeze(),cov_vec.squeeze())
         # print(mean_vec)
         w = np.abs(w) / np.linalg.norm(w, ord=1)
         # w = np.random.dirichlet(np.ones(6))

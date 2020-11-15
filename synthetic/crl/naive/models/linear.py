@@ -31,15 +31,16 @@ class NaiveLinearCQN(torch.nn.Module):
                                  action_size)
 
     def forward(self, state, preference):
-        x = torch.cat((state, preference), dim=1)
+        x = torch.cat((state, preference), dim=1) #(1,8)
         x = x.view(x.size(0), -1)
         x = F.relu(self.affine1(x))
         x = F.relu(self.affine2(x))
         x = F.relu(self.affine3(x))
         x = F.relu(self.affine4(x))
         q = self.affine5(x)
-        #(8192,2)
-        #print(q.shape)
-        hq = q.detach().max(dim=1)[0]
-        #print(hq.shape)#(8192)
+        #(1,2) #it outputs the scalarized version.
+        # print(q.shape)
+        hq = q.detach().max(dim=1)[0] 
+        #print(hq.shape)#(1)
+        # print(hq) outputs the value for max q.
         return hq, q

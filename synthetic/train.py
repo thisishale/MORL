@@ -111,7 +111,7 @@ def train(env, agent, args):
         elif args.env_name in ['ft', 'ft5', 'ft7']:
             act_1 = q[0, 1]
             act_2 = q[0, 0]
-            # so act_1 is the q for the first action, act_1 is the q for the second action.
+            # so act_1 is the q for the first action, act_2 is the q for the second action.
 
         if args.method == "crl-naive":
             act_1 = act_1.data.cpu()
